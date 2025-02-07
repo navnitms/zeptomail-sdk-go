@@ -3,8 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"navnitms/zeptomail-sdk-go/zeptomail"
 	"os"
+
+	"github.com/navnitms/zeptomail-sdk-go/zeptomail"
 )
 
 func main() {

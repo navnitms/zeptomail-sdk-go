@@ -3,7 +3,7 @@ package zeptomail
 import (
 	"encoding/json"
 	"fmt"
-	"navnitms/zeptomail-sdk-go/internal/http"
+	"github.com/navnitms/zeptomail-sdk-go/internal/http"
 )
 
 const baseURL = "https://api.zeptomail.in/v1.1"
@@ -76,7 +76,7 @@ func (ec *EmailClient) SendBatchTemplateEmail(req *TemplateRequest) (*SuccessRes
 }
 
 func (ec *EmailClient) FileCacheUpload(filename string, content []byte) (*FileUploadResponse, error) {
-	resp, err := ec.httpClient.Upload(filesEndpoint, filename,	 content)
+	resp, err := ec.httpClient.Upload(filesEndpoint, filename, content)
 	if err != nil {
 		return nil, err
 	}
