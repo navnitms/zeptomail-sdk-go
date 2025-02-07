@@ -19,6 +19,7 @@ import (
 
 func main() {
     // Initialize email client for sending emails and file uploads
+    // Make sure you only pass the API KEY excluing the "Zoho-enczapikey" prefix 
     emailClient := zeptomail.NewEmailClient("YOUR-API-KEY")
 
     // Initialize templates client for managing email templates

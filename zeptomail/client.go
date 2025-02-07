@@ -3,10 +3,11 @@ package zeptomail
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/navnitms/zeptomail-sdk-go/internal/http"
 )
 
-const baseURL = "https://api.zeptomail.in/v1.1"
+const baseURL = "https://api.zeptomail.com/v1.1"
 const filesEndpoint = "/files"
 
 type EmailClient struct {
