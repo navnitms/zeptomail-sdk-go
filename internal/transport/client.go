@@ -70,10 +70,6 @@ func (c *Client) Upload(path, filename string, content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("request failed with status code: %d, body: %s", resp.StatusCode, string(respBody))
-	}
-
 	return respBody, nil
 }
 
@@ -105,10 +101,6 @@ func (c *Client) Request(method, path string, payload interface{}) ([]byte, erro
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("request failed with status code: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	return respBody, nil

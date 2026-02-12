@@ -30,18 +30,24 @@ func NewTemplatesClient(oAuthToken string) *TemplatesClient {
 	}
 }
 
-func (ec *EmailClient) handleResponse(resp []byte) (*SuccessResponse, error) {
-	var successResp SuccessResponse
-	if err := json.Unmarshal(resp, &successResp); err == nil {
-		return &successResp, nil
-	}
-
+func checkForError(resp []byte) error {
 	var errorResp ErrorResponse
-	if err := json.Unmarshal(resp, &errorResp); err == nil {
-		return nil, fmt.Errorf("API error: %s - %s", errorResp.Error.Code, errorResp.Error.Message)
+	if err := json.Unmarshal(resp, &errorResp); err == nil && errorResp.Error.Code != "" {
+		return fmt.Errorf("API error: %s - %s", errorResp.Error.Code, errorResp.Error.Message)
+	}
+	return nil
+}
+
+func (ec *EmailClient) handleResponse(resp []byte) (*SuccessResponse, error) {
+	if err := checkForError(resp); err != nil {
+		return nil, err
 	}
 
-	return nil, fmt.Errorf("failed to parse response: %s", string(resp))
+	var successResp SuccessResponse
+	if err := json.Unmarshal(resp, &successResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &successResp, nil
 }
 
 func (ec *EmailClient) SendEmail(req *EmailRequest) (*SuccessResponse, error) {
@@ -82,6 +88,10 @@ func (ec *EmailClient) FileCacheUpload(filename string, content []byte) (*FileUp
 		return nil, err
 	}
 
+	if err := checkForError(resp); err != nil {
+		return nil, err
+	}
+
 	var fileResp FileUploadResponse
 	if err := json.Unmarshal(resp, &fileResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -94,6 +104,10 @@ func (tc *TemplatesClient) CreateTemplate(mailagentAlias string, req *CreateTemp
 	endpoint := fmt.Sprintf("/mailagents/%s/templates", mailagentAlias)
 	resp, err := tc.httpClient.Request("POST", endpoint, req)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := checkForError(resp); err != nil {
 		return nil, err
 	}
 
@@ -112,6 +126,10 @@ func (tc *TemplatesClient) GetTemplate(mailagentAlias, templateKey string) (*Get
 		return nil, err
 	}
 
+	if err := checkForError(resp); err != nil {
+		return nil, err
+	}
+
 	var templateResp GetTemplateResponse
 	if err := json.Unmarshal(resp, &templateResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -124,6 +142,10 @@ func (tc *TemplatesClient) UpdateTemplate(mailagentAlias, templateKey string, re
 	endpoint := fmt.Sprintf("/mailagents/%s/templates/%s", mailagentAlias, templateKey)
 	resp, err := tc.httpClient.Request("PUT", endpoint, req)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := checkForError(resp); err != nil {
 		return nil, err
 	}
 
@@ -144,6 +166,10 @@ func (tc *TemplatesClient) ListTemplates(mailagentAlias string, params ListTempl
 		return nil, err
 	}
 
+	if err := checkForError(resp); err != nil {
+		return nil, err
+	}
+
 	var listResp ListTemplatesResponse
 	if err := json.Unmarshal(resp, &listResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -154,6 +180,9 @@ func (tc *TemplatesClient) ListTemplates(mailagentAlias string, params ListTempl
 
 func (tc *TemplatesClient) DeleteTemplate(mailagentAlias, templateKey string) error {
 	endpoint := fmt.Sprintf("/mailagents/%s/templates/%s", mailagentAlias, templateKey)
-	_, err := tc.httpClient.Request("DELETE", endpoint, nil)
-	return err
+	resp, err := tc.httpClient.Request("DELETE", endpoint, nil)
+	if err != nil {
+		return err
+	}
+	return checkForError(resp)
 }
