@@ -2,10 +2,12 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
 type AuthType int
@@ -15,6 +17,11 @@ const (
 	AuthTypeTemplates
 )
 
+type Response struct {
+	StatusCode int
+	Body       []byte
+}
+
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
@@ -23,18 +30,18 @@ type Client struct {
 	authType   AuthType
 }
 
-func NewEmailClient(apiKey string, baseURL string) *Client {
+func NewEmailClient(apiKey string, baseURL string, httpClient *http.Client) *Client {
 	return &Client{
-		httpClient: &http.Client{},
+		httpClient: httpClient,
 		baseURL:    baseURL,
 		apiKey:     apiKey,
 		authType:   AuthTypeAPI,
 	}
 }
 
-func NewTemplatesClient(oAuthToken string, baseURL string) *Client {
+func NewTemplatesClient(oAuthToken string, baseURL string, httpClient *http.Client) *Client {
 	return &Client{
-		httpClient: &http.Client{},
+		httpClient: httpClient,
 		baseURL:    baseURL,
 		oAuthToken: oAuthToken,
 		authType:   AuthTypeTemplates,
@@ -50,13 +57,13 @@ func (c *Client) setAuthHeader(req *http.Request) {
 	}
 }
 
-func (c *Client) Upload(path, filename string, content []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", c.baseURL+path+"?name="+filename, bytes.NewReader(content))
+func (c *Client) Upload(ctx context.Context, path, filename string, content []byte) (*Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+path+"?name="+url.QueryEscape(filename), bytes.NewReader(content))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Content-Type", http.DetectContentType(content))
 	c.setAuthHeader(req)
 
 	resp, err := c.httpClient.Do(req)
@@ -70,10 +77,10 @@ func (c *Client) Upload(path, filename string, content []byte) ([]byte, error) {
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	return respBody, nil
+	return &Response{StatusCode: resp.StatusCode, Body: respBody}, nil
 }
 
-func (c *Client) Request(method, path string, payload interface{}) ([]byte, error) {
+func (c *Client) Request(ctx context.Context, method, path string, payload interface{}) (*Response, error) {
 	var body io.Reader
 	if payload != nil {
 		jsonData, err := json.Marshal(payload)
@@ -83,7 +90,7 @@ func (c *Client) Request(method, path string, payload interface{}) ([]byte, erro
 		body = bytes.NewBuffer(jsonData)
 	}
 
-	req, err := http.NewRequest(method, c.baseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
@@ -103,5 +110,5 @@ func (c *Client) Request(method, path string, payload interface{}) ([]byte, erro
 		return nil, fmt.Errorf("error reading response body: %w", err)
 	}
 
-	return respBody, nil
+	return &Response{StatusCode: resp.StatusCode, Body: respBody}, nil
 }
