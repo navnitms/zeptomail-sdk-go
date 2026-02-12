@@ -4,29 +4,29 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/navnitms/zeptomail-sdk-go/internal/http"
+	"github.com/navnitms/zeptomail-sdk-go/internal/transport"
 )
 
 const baseURL = "https://api.zeptomail.com/v1.1"
 const filesEndpoint = "/files"
 
 type EmailClient struct {
-	httpClient *http.Client
+	httpClient *transport.Client
 }
 
 type TemplatesClient struct {
-	httpClient *http.Client
+	httpClient *transport.Client
 }
 
 func NewEmailClient(apiKey string) *EmailClient {
 	return &EmailClient{
-		httpClient: http.NewEmailClient(apiKey, baseURL),
+		httpClient: transport.NewEmailClient(apiKey, baseURL),
 	}
 }
 
 func NewTemplatesClient(oAuthToken string) *TemplatesClient {
 	return &TemplatesClient{
-		httpClient: http.NewTemplatesClient(oAuthToken, baseURL),
+		httpClient: transport.NewTemplatesClient(oAuthToken, baseURL),
 	}
 }
 

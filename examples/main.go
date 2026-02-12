@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/navnitms/zeptomail-sdk-go/zeptomail"
+	"github.com/navnitms/zeptomail-sdk-go"
 )
 
 func main() {
