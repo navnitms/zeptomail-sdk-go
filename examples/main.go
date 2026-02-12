@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/navnitms/zeptomail-sdk-go"
 )
@@ -14,24 +18,30 @@ func main() {
 }
 
 func emailOperations() {
-	emailClient := zeptomail.NewEmailClient("YOUR-API-KEY")
-	sendSingleEmail(emailClient)
-	sendBatchEmail(emailClient)
-	sendTemplateEmail(emailClient)
-	sendBatchTemplateEmail(emailClient)
-	fileUploadCache(emailClient)
+	emailClient := zeptomail.NewEmailClient("YOUR-API-KEY",
+		zeptomail.WithHTTPClient(&http.Client{Timeout: 60 * time.Second}),
+	)
+
+	ctx := context.Background()
+	sendSingleEmail(ctx, emailClient)
+	sendBatchEmail(ctx, emailClient)
+	sendTemplateEmail(ctx, emailClient)
+	sendBatchTemplateEmail(ctx, emailClient)
+	fileUploadCache(ctx, emailClient)
 }
 
 func templateOperations() {
 	templatesClient := zeptomail.NewTemplatesClient("YOUR-OAUTH-TOKEN")
-	createTemplate(templatesClient)
-	getTemplate(templatesClient)
-	updateTemplate(templatesClient)
-	listTemplates(templatesClient)
-	deleteTemplate(templatesClient)
+
+	ctx := context.Background()
+	createTemplate(ctx, templatesClient)
+	getTemplate(ctx, templatesClient)
+	updateTemplate(ctx, templatesClient)
+	listTemplates(ctx, templatesClient)
+	deleteTemplate(ctx, templatesClient)
 }
 
-func sendSingleEmail(client *zeptomail.EmailClient) {
+func sendSingleEmail(ctx context.Context, client *zeptomail.EmailClient) {
 	emailReq := &zeptomail.EmailRequest{
 		From: zeptomail.EmailAddress{
 			Address: "sender@example.com",
@@ -47,16 +57,35 @@ func sendSingleEmail(client *zeptomail.EmailClient) {
 		},
 		Subject:  "Test Email",
 		HTMLBody: "<h1>Hello from ZeptoMail SDK!</h1>",
+		Attachments: []zeptomail.Attachment{
+			{
+				Content:  "SGVsbG8gV29ybGQ=", // base64 of "Hello World"
+				MimeType: "text/plain",
+				Name:     "hello.txt",
+			},
+		},
+		InlineImages: []zeptomail.InlineImage{
+			{
+				CID:      "logo",
+				Content:  "iVBORw0KGgo=", // truncated base64 PNG
+				MimeType: "image/png",
+			},
+		},
 	}
 
-	resp, err := client.SendEmail(emailReq)
+	resp, err := client.SendEmail(ctx, emailReq)
 	if err != nil {
+		var apiErr *zeptomail.APIError
+		if errors.As(err, &apiErr) {
+			fmt.Printf("API error %d: %s — %s\n", apiErr.HTTPStatusCode, apiErr.Code, apiErr.Message)
+			return
+		}
 		log.Fatal("Failed to send email:", err)
 	}
 	fmt.Printf("Email sent successfully: %+v\n", resp)
 }
 
-func sendBatchEmail(client *zeptomail.EmailClient) {
+func sendBatchEmail(ctx context.Context, client *zeptomail.EmailClient) {
 	batchEmailReq := &zeptomail.EmailRequest{
 		From: zeptomail.EmailAddress{
 			Address: "sender@example.com",
@@ -88,14 +117,14 @@ func sendBatchEmail(client *zeptomail.EmailClient) {
 		TextBody: "This is a sample email",
 	}
 
-	resp, err := client.SendBatchEmail(batchEmailReq)
+	resp, err := client.SendBatchEmail(ctx, batchEmailReq)
 	if err != nil {
 		log.Fatal("Failed to send batch email:", err)
 	}
 	fmt.Printf("Batch email sent successfully: %+v\n", resp)
 }
 
-func sendTemplateEmail(client *zeptomail.EmailClient) {
+func sendTemplateEmail(ctx context.Context, client *zeptomail.EmailClient) {
 	templateReq := &zeptomail.TemplateRequest{
 		TemplateKey:   "template-key",
 		BounceAddress: "bounce@bounce.zylker.com",
@@ -116,14 +145,14 @@ func sendTemplateEmail(client *zeptomail.EmailClient) {
 		},
 	}
 
-	resp, err := client.SendTemplateEmail(templateReq)
+	resp, err := client.SendTemplateEmail(ctx, templateReq)
 	if err != nil {
 		log.Fatal("Failed to send template email:", err)
 	}
 	fmt.Printf("Template email sent successfully: %+v\n", resp)
 }
 
-func sendBatchTemplateEmail(client *zeptomail.EmailClient) {
+func sendBatchTemplateEmail(ctx context.Context, client *zeptomail.EmailClient) {
 	batchTemplateReq := &zeptomail.TemplateRequest{
 		TemplateKey:   "template-key",
 		BounceAddress: "bounce@bounce.zylker.com",
@@ -155,64 +184,64 @@ func sendBatchTemplateEmail(client *zeptomail.EmailClient) {
 		},
 	}
 
-	resp, err := client.SendBatchTemplateEmail(batchTemplateReq)
+	resp, err := client.SendBatchTemplateEmail(ctx, batchTemplateReq)
 	if err != nil {
 		log.Fatal("Failed to send batch template email:", err)
 	}
 	fmt.Printf("Batch template email sent successfully: %+v\n", resp)
 }
 
-func fileUploadCache(client *zeptomail.EmailClient) {
+func fileUploadCache(ctx context.Context, client *zeptomail.EmailClient) {
 	fileContent, err := os.ReadFile("test.txt")
 	if err != nil {
 		log.Fatal("Failed to read file:", err)
 	}
 
-	resp, err := client.FileCacheUpload("test.txt", fileContent)
+	resp, err := client.FileCacheUpload(ctx, "test.txt", fileContent)
 	if err != nil {
 		log.Fatal("Failed to upload file:", err)
 	}
 	fmt.Printf("File uploaded: %s\n", resp.FileCacheKey)
 }
 
-func createTemplate(client *zeptomail.TemplatesClient) {
+func createTemplate(ctx context.Context, client *zeptomail.TemplatesClient) {
 	createReq := &zeptomail.CreateTemplateRequest{
 		TemplateName: "Welcome Email",
 		Subject:      "Welcome to our service",
 		HTMLBody:     "<h1>Welcome {{name}}!</h1>",
 	}
 
-	resp, err := client.CreateTemplate("your-mailagent-alias", createReq)
+	resp, err := client.CreateTemplate(ctx, "your-mailagent-alias", createReq)
 	if err != nil {
 		log.Fatal("Failed to create template:", err)
 	}
 	fmt.Printf("Template created: %+v\n", resp)
 }
 
-func getTemplate(client *zeptomail.TemplatesClient) {
-	resp, err := client.GetTemplate("your-mailagent-alias", "template-key")
+func getTemplate(ctx context.Context, client *zeptomail.TemplatesClient) {
+	resp, err := client.GetTemplate(ctx, "your-mailagent-alias", "template-key")
 	if err != nil {
 		log.Fatal("Failed to get template:", err)
 	}
 	fmt.Printf("Template details: %+v\n", resp)
 }
 
-func updateTemplate(client *zeptomail.TemplatesClient) {
+func updateTemplate(ctx context.Context, client *zeptomail.TemplatesClient) {
 	updateReq := &zeptomail.UpdateTemplateRequest{
 		TemplateName: "Welcome Email (Updated)",
 		Subject:      "Welcome to our service - New Version",
 		HTMLBody:     "<h1>Welcome {{name}}!</h1><p>We're glad to have you.</p>",
 	}
 
-	resp, err := client.UpdateTemplate("your-mailagent-alias", "template-key", updateReq)
+	resp, err := client.UpdateTemplate(ctx, "your-mailagent-alias", "template-key", updateReq)
 	if err != nil {
 		log.Fatal("Failed to update template:", err)
 	}
 	fmt.Printf("Template updated: %+v\n", resp)
 }
 
-func listTemplates(client *zeptomail.TemplatesClient) {
-	resp, err := client.ListTemplates("your-mailagent-alias", zeptomail.ListTemplatesParams{
+func listTemplates(ctx context.Context, client *zeptomail.TemplatesClient) {
+	resp, err := client.ListTemplates(ctx, "your-mailagent-alias", zeptomail.ListTemplatesParams{
 		Offset: 0,
 		Limit:  10,
 	})
@@ -222,8 +251,8 @@ func listTemplates(client *zeptomail.TemplatesClient) {
 	fmt.Printf("Templates: %+v\n", resp)
 }
 
-func deleteTemplate(client *zeptomail.TemplatesClient) {
-	err := client.DeleteTemplate("your-mailagent-alias", "template-key")
+func deleteTemplate(ctx context.Context, client *zeptomail.TemplatesClient) {
+	err := client.DeleteTemplate(ctx, "your-mailagent-alias", "template-key")
 	if err != nil {
 		log.Fatal("Failed to delete template:", err)
 	}
